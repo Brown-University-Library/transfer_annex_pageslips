@@ -1,5 +1,5 @@
-import email, imaplib, logging, os, pprint, re, subprocess, sys, urllib
-
+import datetime, email, imaplib, json, logging, os, pprint, sys
+import requests
 
 logging.basicConfig(
     # filename=os.environ['ANNX_PGSLP__LOG_PATH'],
@@ -15,9 +15,11 @@ class Controller(object):
     """ Manages steps. """
 
     def __init__( self ):
-        self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
-        self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
-        self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
+        self.RECENTS_URL = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_URL']
+        self.RECENTS_PATH = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_PATH']
+        # self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
+        # self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
+        # self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
 
     def transfer_requests( self ):
         """ Calls steps.
@@ -34,7 +36,19 @@ class Controller(object):
     def get_since_date( self ):
         """ Grabs comparison date.
             Called by transfer_requests() """
-        since_date = 'foo'
+        since_date = None
+        r = requests.get( self.RECENTS_URL )
+        log.debug( 'r.status_code, `%s`; type, `%s`' % (r.status_code, type(r.status_code))  )
+        if r.status_code == 404:
+            recents_dct = {
+                'last_updated': datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S.%f' ),
+                'recent_transfers': [] }
+            with open( self.RECENTS_PATH, 'w+' ) as f:
+                f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
+        else:
+            recents = r.json()['recent_transfers']
+            if recents:
+                since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f' )
         log.debug( 'since_date, `%s`' % since_date )
         return since_date
 
