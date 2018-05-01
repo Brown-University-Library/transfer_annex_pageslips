@@ -1,0 +1,3 @@
+# git+https://github.com/birkin/shellvars-py.git@v0.2
+
+## no non-python packages required yet
