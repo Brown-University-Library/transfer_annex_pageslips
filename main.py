@@ -40,11 +40,7 @@ class Controller(object):
         r = requests.get( self.RECENTS_URL )
         log.debug( 'r.status_code, `%s`; type, `%s`' % (r.status_code, type(r.status_code))  )
         if r.status_code == 404:
-            recents_dct = {
-                'last_updated': datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S.%f' ),
-                'recent_transfers': [] }
-            with open( self.RECENTS_PATH, 'w+' ) as f:
-                f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
+            self.handle_date_json_not_found()
         else:
             recents = r.json()['recent_transfers']
             if recents:
@@ -52,14 +48,41 @@ class Controller(object):
         log.debug( 'since_date, `%s`' % since_date )
         return since_date
 
+    def handle_date_json_not_found( self ):
+        """ Creates recent_transfers.json.
+            Called by get_since_date() """
+        recents_dct = {
+            'last_updated': datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S.%f' ),
+            'recent_transfers': [] }
+        with open( self.RECENTS_PATH, 'w+' ) as f:
+            f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
+        return
+
     def check_email( self, since_date ):
         """ Checks for recent annex-requests.
+            Returns dct of email-date and email-body.
             Called by transfer_requests()"""
+        checker = EmailChecker()
+        email_dct = checker.check_email( since_date )
+        return email_dct
+
+    ## end class Controller()
+
+
+class EmailChecker( object ):
+    """ Manages email-check. """
+
+    def __init__( self ):
+        pass
+        # self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
+        # self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
+        # self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
+
+    def check_email( self, since_date ):
         email_dct = { 'email_date': None, 'email_body': None }
         log.debug( 'email_dct, ```%s```' % email_dct )
         return email_dct
 
-    ## end class Controller()
 
 
 
