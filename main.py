@@ -34,7 +34,16 @@ class Controller(object):
     def get_since_date( self ):
         """ Grabs comparison date.
             Called by transfer_requests() """
-        pass
+        since_date = 'foo'
+        log.debug( 'since_date, `%s`' % since_date )
+        return since_date
+
+    def check_email( self, since_date ):
+        """ Checks for recent annex-requests.
+            Called by transfer_requests()"""
+        email_dct = { 'email_date': None, 'email_body': None }
+        log.debug( 'email_dct, ```%s```' % email_dct )
+        return email_dct
 
     ## end class Controller()
 
