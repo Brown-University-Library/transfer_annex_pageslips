@@ -73,17 +73,82 @@ class EmailChecker( object ):
     """ Manages email-check. """
 
     def __init__( self ):
-        pass
-        # self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
-        # self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
-        # self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
+        self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
+        self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
+        self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
 
     def check_email( self, since_date ):
+        """ Manager for email check.
+            Called by Controller.check_email() """
+        mailer = self.setup_mailer()
+        email_dct = self.search_email( mailer, since_date )
+        self.close_mailer( mailer )
+        log.debug( 'email_dct, ```%s```' % email_dct )
+        return email_dct
+
+    def setup_mailer( self ):
+        """ Sets up mailer & connects to inbox.
+            Called by check_email() """
+        try:
+            mailer = imaplib.IMAP4_SSL( self.MAIL_DOMAIN )
+            mailer.login( self.EMAIL, self.PASSWORD )
+            mailer.select( 'inbox' )   # connect's to inbox by default, but good to specify
+            log.debug( 'have mailer' )
+            return mailer
+        except Exception as e:
+            log.error( 'exception, ```%s```' % e )
+            raise Exception( 'whoa: ```%s```' % e )
+
+    def search_email( self, mailer, since_date ):
+        """ Searches email account on proper subject.
+            Called by check_email() """
         email_dct = { 'email_date': None, 'email_body': None }
+        try:
+            ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"Mail from the Library"' )  # response, eg, ```('OK', [b'2 3'])```
+            log.debug( 'id_list, ```%s```' % id_list )
+            email_dct = self.process_recent_email( mailer, since_date, id_list )
+        except Exception as e:
+            log.error( 'exception, ```%s```' % e )
+            if mailer:
+                self.close_mailer( mailer )
+            raise Exception( 'whoa: ```%s```' % e )
+
+    def process_recent_email( self, mailer, since_date, id_list ):
+        """ Checks last email date and if necessary, grabs body.
+            Called by search_email() """
+        email_dct = { 'email_date': None, 'email_body': None }
+        recent_id = id_list[0].split()[-1]  # str; & id_list is really a list of a single space-delimited string
+        try:
+            ( ok_response, rfc822_obj_list ) = mailer.fetch( recent_id, '(RFC822)' )
+            email_rfc822_tuple = rfc822_obj_list[0]
+            email_rfc822_bytestring = email_rfc822_tuple[1]  # tuple[0] example, ```b'3 (RFC822 {5049}'```
+            email_obj = email.message_from_string( email_rfc822_bytestring.decode('utf-8') )  # email is a standard python import
+            log.debug( 'is_multipart(), `%s`' % email_obj.is_multipart() )
+            items_list_of_tuples = email_obj.items()  # eg, [ ('Subject', 'the subject text'), () ] -- BUT does NOT provide body-content
+            log.debug( 'items_list_of_tuples, ```%s```' % pprint.pformat(items_list_of_tuples) )
+            body_message = email_obj.get_payload( decode=True )  # body-content in bytes
+            log.debug( 'type(body_message), `%s`' % type(body_message) )
+            log.debug( 'body_message, ```%s```' % body_message )
+            final = body_message.decode( 'utf-8' )
+            # final = urllib.parse.unquote( tmp )
+            log.debug( 'final, ```%s```' % final )
+        except Exception as e:
+            log.error( 'exception, ```%s```' % e )
+        finally:
+            if mailer:
+                self.close_mailer
         log.debug( 'email_dct, ```%s```' % email_dct )
         return email_dct
 
 
+
+    def close_mailer( self, mailer ):
+        """ Closes mailer.
+            Called by check_email() """
+        mailer.close()
+        mailer.logout()
+        log.debug( 'mailer closed' )
+        return
 
 
 # ## connect
