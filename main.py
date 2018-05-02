@@ -19,6 +19,7 @@ class Controller(object):
     def __init__( self ):
         self.RECENTS_URL = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_URL']
         self.RECENTS_PATH = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_PATH']
+        self.DESTINATION_FILEPATH = os.environ['ANNX_PGSLP__DESTINATION_FILEPATH']
 
     def transfer_requests( self ):
         """ Calls steps.
@@ -70,7 +71,14 @@ class Controller(object):
     def transfer_pageslips( self, pageslips_data ):
         """ Transfers pageslips to destination.
             Called by transfer_requests() """
-        pass
+        try:
+            with open( self.DESTINATION_FILEPATH, 'w+' ) as f:
+                f.write( pageslips_data )
+            log.debug( 'transfer successful' )
+        except Exception as e:
+            log.error( 'exception, ```%s```' % e )
+            raise Exception( e )
+        return
 
     ## end class Controller()
 
