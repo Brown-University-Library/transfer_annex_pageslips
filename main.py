@@ -26,8 +26,7 @@ class Controller(object):
         since_date = self.get_since_date()
         email_dct = self.check_email( since_date )  # dct contains date and body items.
         if email_dct['email_body']:
-            pageslips = self.extract_pageslips( email_body )
-            self.deposit_pageslips( pageslips )
+            self.transfer_pageslips( email_dct['email_body'] )
             self.update_since_data( email_dct['email_date'] )
         log.debug( 'transfer-check complete' )
         return
@@ -68,6 +67,11 @@ class Controller(object):
         log.debug( 'returning email_dct' )
         return email_dct
 
+    def transfer_pageslips( self, pageslips_data ):
+        """ Transfers pageslips to destination.
+            Called by transfer_requests() """
+        pass
+
     ## end class Controller()
 
 
@@ -85,7 +89,7 @@ class EmailChecker( object ):
         mailer = self.setup_mailer()
         email_dct = self.search_email( mailer, since_date )
         self.close_mailer( mailer )
-        log.debug( 'email_dct, ```%s```' % email_dct )
+        log.debug( 'email_dct, ```%s```' % pprint.pformat(email_dct)[0:100] )
         return email_dct
 
     def setup_mailer( self ):
@@ -103,7 +107,9 @@ class EmailChecker( object ):
 
     def search_email( self, mailer, since_date ):
         """ Searches email account on proper subject.
-            Called by check_email() """
+            Called by check_email()
+            Note: B.B. says the `Subject` cannot be customized, but has added identifying text to the beginning of the body_message.
+                  Perhaps in the future the email should be checked for this identifying text. """
         email_dct = { 'email_date': None, 'email_body': None }
         try:
             ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"Mail from the Library"' )  # response, eg, ```('OK', [b'2 3'])```
@@ -128,7 +134,7 @@ class EmailChecker( object ):
         body_message = self.parse_body_message( email_obj )
         email_dct['email_date'] = email_date
         email_dct['email_body'] = body_message
-        log.debug( 'email_dct, ```%s```' % email_dct )
+        log.debug( 'email_dct, ```%s```' % pprint.pformat(email_dct)[0:100] )
         return email_dct
 
     def objectify_email_message( self, mailer, id_list ):
@@ -168,7 +174,7 @@ class EmailChecker( object ):
             except Exception as e:
                 log.error( 'exception, ```%s```' % e )
                 final = body_message.decode('utf-8', errors='backslashreplace')
-        log.debug( 'final, ```%s```' % final )
+        log.debug( 'final, ```%s```' % final[0:100] )
         return final
 
     def close_mailer( self, mailer ):
@@ -179,6 +185,8 @@ class EmailChecker( object ):
         mailer.logout()
         log.debug( 'mailer closed' )
         return
+
+    ## end class EmailChecker()
 
 
 if __name__ == '__main__':
