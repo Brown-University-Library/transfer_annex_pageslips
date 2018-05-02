@@ -1,7 +1,7 @@
 import chardet, datetime, email, imaplib, json, logging, os, pprint, sys
 import email.utils
 
-import requests
+import pytz, requests
 
 logging.basicConfig(
     # filename=os.environ['ANNX_PGSLP__LOG_PATH'],
@@ -50,8 +50,10 @@ class Controller(object):
     def handle_date_json_not_found( self ):
         """ Creates recent_transfers.json.
             Called by get_since_date() """
+        eastern = pytz.timezone( 'US/Eastern' )
+        dt_obj = eastern.localize( datetime.datetime.now() )
         recents_dct = {
-            'last_updated': datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S.%f' ),
+            'last_updated': dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' ),
             'recent_transfers': [] }
         with open( self.RECENTS_PATH, 'w+' ) as f:
             f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
@@ -122,7 +124,7 @@ class EmailChecker( object ):
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
         email_date = self.parse_email_date( email_obj )
-        if email_date < since_date:
+        if since_date is None or since_date > email_date:
             return email_dct
 
         body_message = email_obj.get_payload( decode=True )  # body-content in bytes
