@@ -43,7 +43,7 @@ class Controller(object):
         else:
             recents = r.json()['recent_transfers']
             if recents:
-                since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f' )
+                since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f%z' )
         log.debug( 'since_date, `%s`' % since_date )
         return since_date
 
@@ -79,6 +79,16 @@ class Controller(object):
             log.error( 'exception, ```%s```' % e )
             raise Exception( e )
         return
+
+    def update_since_data( email_dt_obj ):
+        """ Adds last-checked date to recents-tracker.
+            Called by transfer_requests() """
+        email_dt_str = email_dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' )
+        eastern = pytz.timezone( 'US/Eastern' )
+        now_dt_obj = eastern.localize( datetime.datetime.now() )
+        now_dt_str = now_dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' )
+        1/0  # here
+        pass
 
     ## end class Controller()
 
@@ -135,7 +145,7 @@ class EmailChecker( object ):
             Called by search_email() """
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
-        email_date = self.parse_email_date( email_obj )
+        email_date = self.parse_email_date( email_obj )  # datetime-obj
         if since_date is not None and since_date > email_date:
             log.debug( 'no new email' )
             return email_dct
