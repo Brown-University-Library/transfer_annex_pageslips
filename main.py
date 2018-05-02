@@ -124,8 +124,10 @@ class EmailChecker( object ):
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
         email_date = self.parse_email_date( email_obj )
-        if since_date is None or since_date > email_date:
+        if since_date is not None and since_date > email_date:
+            log.debug( 'no new email' )
             return email_dct
+
 
         body_message = email_obj.get_payload( decode=True )  # body-content in bytes
         log.debug( 'type(body_message), `%s`' % type(body_message) )
