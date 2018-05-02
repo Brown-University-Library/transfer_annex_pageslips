@@ -1,4 +1,6 @@
 import chardet, datetime, email, imaplib, json, logging, os, pprint, sys
+import email.utils
+
 import requests
 
 logging.basicConfig(
@@ -17,9 +19,6 @@ class Controller(object):
     def __init__( self ):
         self.RECENTS_URL = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_URL']
         self.RECENTS_PATH = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_PATH']
-        # self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
-        # self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
-        # self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
 
     def transfer_requests( self ):
         """ Calls steps.
@@ -122,11 +121,13 @@ class EmailChecker( object ):
             Called by search_email() """
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
-        items_list_of_tuples = email_obj.items()  # eg, [ ('Subject', 'the subject text'), () ] -- BUT does NOT provide body-content
-        log.debug( 'items_list_of_tuples, ```%s```' % pprint.pformat(items_list_of_tuples) )
+        email_date = self.parse_email_date( email_obj )
+        if email_date < since_date:
+            return email_dct
+
         body_message = email_obj.get_payload( decode=True )  # body-content in bytes
         log.debug( 'type(body_message), `%s`' % type(body_message) )
-        log.debug( b'body_message, ```%s```' % body_message )
+        # log.debug( b'body_message, ```%s```' % body_message )
         try:
             final = body_message.decode( 'utf-8' )
         except UnicodeDecodeError:
@@ -142,13 +143,29 @@ class EmailChecker( object ):
         return email_dct
 
     def objectify_email_message( self, mailer, id_list ):
+        """ Returns recent email from id_list.
+            Called by: process_recent_email() """
         recent_id = id_list[0].split()[-1]  # str; & id_list is really a list of a single space-delimited string
         ( ok_response, rfc822_obj_list ) = mailer.fetch( recent_id, '(RFC822)' )
-        email_rfc822_tuple = rfc822_obj_list[0]
-        email_rfc822_bytestring = email_rfc822_tuple[1]  # tuple[0] example, ```b'3 (RFC822 {5049}'```
+        email_rfc822_tuple = rfc822_obj_list[0]  # tuple[0] example, ```b'3 (RFC822 {5049}'```
+        email_rfc822_bytestring = email_rfc822_tuple[1]  # tuple[1] contains all the email data
         email_obj = email.message_from_string( email_rfc822_bytestring.decode('utf-8') )  # email is a standard python import
         return email_obj
 
+    def parse_email_date( self, email_obj ):
+        """ Returns date object.
+            Called by process_recent_email() """
+        dt_str = 'init'
+        items_list_of_tuples = email_obj.items()  # eg, [ ('Subject', 'the subject text'), () ] -- BUT does NOT provide body-content
+        log.debug( 'items_list_of_tuples, ```%s```' % pprint.pformat(items_list_of_tuples) )
+        for tpl in items_list_of_tuples:
+            if tpl[0] == 'Date':
+                dt_str = tpl[1]
+                break
+        log.debug( 'dt_str, `%s`; type(), `%s`' % (dt_str, type(dt_str)) )
+        dt_obj = email.utils.parsedate_to_datetime( dt_str )
+        log.debug( 'dt_obj, `%s`' % str(dt_obj) )
+        return dt_obj
 
 
 
@@ -156,12 +173,7 @@ class EmailChecker( object ):
     #     """ Checks last email date and if necessary, grabs body.
     #         Called by search_email() """
     #     email_dct = { 'email_date': None, 'email_body': None }
-    #     recent_id = id_list[0].split()[-1]  # str; & id_list is really a list of a single space-delimited string
-    #     ( ok_response, rfc822_obj_list ) = mailer.fetch( recent_id, '(RFC822)' )
-    #     email_rfc822_tuple = rfc822_obj_list[0]
-    #     email_rfc822_bytestring = email_rfc822_tuple[1]  # tuple[0] example, ```b'3 (RFC822 {5049}'```
-    #     email_obj = email.message_from_string( email_rfc822_bytestring.decode('utf-8') )  # email is a standard python import
-    #     log.debug( 'is_multipart(), `%s`' % email_obj.is_multipart() )
+    #     email_obj = self.objectify_email_message( mailer, id_list )
     #     items_list_of_tuples = email_obj.items()  # eg, [ ('Subject', 'the subject text'), () ] -- BUT does NOT provide body-content
     #     log.debug( 'items_list_of_tuples, ```%s```' % pprint.pformat(items_list_of_tuples) )
     #     body_message = email_obj.get_payload( decode=True )  # body-content in bytes
