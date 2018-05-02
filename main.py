@@ -127,21 +127,8 @@ class EmailChecker( object ):
         if since_date is not None and since_date > email_date:
             log.debug( 'no new email' )
             return email_dct
+        body_message = self.parse_body_message( email_obj )
 
-
-        body_message = email_obj.get_payload( decode=True )  # body-content in bytes
-        log.debug( 'type(body_message), `%s`' % type(body_message) )
-        # log.debug( b'body_message, ```%s```' % body_message )
-        try:
-            final = body_message.decode( 'utf-8' )
-        except UnicodeDecodeError:
-            encoding_dct = chardet.detect( body_message )  # eg ```{'encoding': 'ISO-8859-1', 'confidence': 0.73, 'language': ''}```
-            try:
-                final = body_message.decode( encoding_dct['encoding'] )
-            except Exception as e:
-                log.error( 'exception, ```%s```' % e )
-                final = body_message.decode('utf-8', errors='backslashreplace')
-        log.debug( 'final, ```%s```' % final )
         email_dct['email_body'] = final
         log.debug( 'email_dct, ```%s```' % email_dct )
         return email_dct
@@ -171,18 +158,35 @@ class EmailChecker( object ):
         log.debug( 'dt_obj, `%s`' % str(dt_obj) )
         return dt_obj
 
-
+    def parse_body_message( self, email_obj ):
+        """ Returns body message.
+            Called by process_recent_email() """
+        body_message = email_obj.get_payload( decode=True )  # body-content in bytes
+        try:
+            final = body_message.decode( 'utf-8' )
+        except UnicodeDecodeError:
+            try:
+                final = body_message.decode( chardet.detect( body_message )['encoding'] )  # chardet result, eg ```{'encoding': 'ISO-8859-1', 'confidence': 0.73, 'language': ''}```
+            except Exception as e:
+                log.error( 'exception, ```%s```' % e )
+                final = body_message.decode('utf-8', errors='backslashreplace')
+        log.debug( 'final, ```%s```' % final )
+        return final
 
     # def process_recent_email( self, mailer, since_date, id_list ):
     #     """ Checks last email date and if necessary, grabs body.
     #         Called by search_email() """
     #     email_dct = { 'email_date': None, 'email_body': None }
     #     email_obj = self.objectify_email_message( mailer, id_list )
-    #     items_list_of_tuples = email_obj.items()  # eg, [ ('Subject', 'the subject text'), () ] -- BUT does NOT provide body-content
-    #     log.debug( 'items_list_of_tuples, ```%s```' % pprint.pformat(items_list_of_tuples) )
+    #     email_date = self.parse_email_date( email_obj )
+    #     if since_date is not None and since_date > email_date:
+    #         log.debug( 'no new email' )
+    #         return email_dct
+
+
     #     body_message = email_obj.get_payload( decode=True )  # body-content in bytes
     #     log.debug( 'type(body_message), `%s`' % type(body_message) )
-    #     log.debug( b'body_message, ```%s```' % body_message )
+    #     # log.debug( b'body_message, ```%s```' % body_message )
     #     try:
     #         final = body_message.decode( 'utf-8' )
     #     except UnicodeDecodeError:
