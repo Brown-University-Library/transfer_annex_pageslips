@@ -26,7 +26,7 @@ class Controller(object):
         """ Calls steps.
             Called by ```if __name__ == '__main__':``` """
         last_transfer_date = self.get_last_transfer_date()
-        email_dct = self.check_email( last_transfer_date )  # dct contains date and body items.
+        email_dct = self.initiate_check_email( last_transfer_date )  # dct contains date and body items.
         if email_dct['email_body']:
             self.transfer_pageslips( email_dct['email_body'] )
             self.update_since_data( email_dct['email_date'] )
@@ -68,7 +68,7 @@ class Controller(object):
             f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
         return recents_dct
 
-    def check_email( self, last_transfer_date ):
+    def initiate_check_email( self, last_transfer_date ):
         """ Checks for recent annex-requests.
             Returns dct of email-date and email-body.
             Called by transfer_requests()"""
@@ -117,7 +117,7 @@ class EmailChecker( object ):
 
     def check_email( self, last_transfer_date ):
         """ Manager for email check.
-            Called by Controller.check_email() """
+            Called by Controller.initiate_check_email() """
         mailer = self.setup_mailer()
         email_dct = self.search_email( mailer, last_transfer_date )
         self.close_mailer( mailer )
