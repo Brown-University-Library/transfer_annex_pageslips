@@ -20,31 +20,32 @@ class Controller(object):
         self.RECENTS_URL = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_URL']
         self.RECENTS_PATH = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_PATH']
         self.DESTINATION_FILEPATH = os.environ['ANNX_PGSLP__DESTINATION_FILEPATH']
-        self.recents_dct = None  # populated by get_since_date()
+        self.recents_dct = None  # populated by get_last_transfer_date()
 
     def transfer_requests( self ):
         """ Calls steps.
             Called by ```if __name__ == '__main__':``` """
-        since_date = self.get_since_date()
-        email_dct = self.check_email( since_date )  # dct contains date and body items.
+        last_transfer_date = self.get_last_transfer_date()
+        email_dct = self.check_email( last_transfer_date )  # dct contains date and body items.
         if email_dct['email_body']:
             self.transfer_pageslips( email_dct['email_body'] )
             self.update_since_data( email_dct['email_date'] )
         log.debug( 'transfer-check complete' )
         return
 
-    def get_since_date( self ):
+    def get_last_transfer_date( self ):
         """ Grabs comparison date.
             Called by transfer_requests() """
-        since_date = None
+        last_transfer_date = None
         r = requests.get( self.RECENTS_URL )
         self.recents_dct = self.get_recents( r )
         if self.recents_dct['recent_transfers']:
-            since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f%z' )
+            last_transfer_date_str = self.recents_dct['recent_transfers'][-1]
+            last_transfer_date = datetime.datetime.strptime( last_transfer_date_str, '%Y-%m-%dT%H:%M:%S.%f%z' )
         else:
-            since_date = None
-        log.debug( 'since_date, `%s`' % since_date )
-        return since_date
+            last_transfer_date = None
+        log.debug( 'last_transfer_date, `%s`' % last_transfer_date )
+        return last_transfer_date
 
     def get_recents( self, resp ):
         if resp.status_code == 404:
@@ -56,22 +57,23 @@ class Controller(object):
 
     def create_recents_json( self ):
         """ Creates recent_transfers.json.
-            Called by get_since_date() """
+            Called by get_last_transfer_date() """
         eastern = pytz.timezone( 'US/Eastern' )
         dt_obj = eastern.localize( datetime.datetime.now() )
         recents_dct = {
             'last_updated': dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' ),
             'recent_transfers': [] }
+        log.debug( 'recents_dct, ```%s```' % pprint.pformat(recents_dct) )
         with open( self.RECENTS_PATH, 'w+' ) as f:
             f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
         return recents_dct
 
-    def check_email( self, since_date ):
+    def check_email( self, last_transfer_date ):
         """ Checks for recent annex-requests.
             Returns dct of email-date and email-body.
             Called by transfer_requests()"""
         checker = EmailChecker()
-        email_dct = checker.check_email( since_date )
+        email_dct = checker.check_email( last_transfer_date )
         log.debug( 'returning email_dct' )
         return email_dct
 
@@ -87,15 +89,20 @@ class Controller(object):
             raise Exception( e )
         return
 
-    def update_since_data( email_dt_obj ):
+    def update_since_data( self, email_dt_obj ):
         """ Adds last-checked date to recents-tracker.
             Called by transfer_requests() """
         email_dt_str = email_dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' )
+        self.recents_dct['recent_transfers'].append( email_dt_str )
+        self.recents_dct['recent_transfers'] = self.recents_dct['recent_transfers'][-60:]  # storing a month's worth (assuming two-transfers a day)
         eastern = pytz.timezone( 'US/Eastern' )
         now_dt_obj = eastern.localize( datetime.datetime.now() )
         now_dt_str = now_dt_obj.strftime( '%Y-%m-%dT%H:%M:%S.%f%z' )
-        1/0  # here
-        pass
+        self.recents_dct['last_updated'] = now_dt_str
+        log.debug( 'self.recents_dct, ```%s```' % pprint.pformat(self.recents_dct) )
+        with open( self.RECENTS_PATH, 'w+' ) as f:
+            f.write( json.dumps(self.recents_dct, sort_keys=True, indent=2) )
+        return
 
     ## end class Controller()
 
@@ -108,11 +115,11 @@ class EmailChecker( object ):
         self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
         self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
 
-    def check_email( self, since_date ):
+    def check_email( self, last_transfer_date ):
         """ Manager for email check.
             Called by Controller.check_email() """
         mailer = self.setup_mailer()
-        email_dct = self.search_email( mailer, since_date )
+        email_dct = self.search_email( mailer, last_transfer_date )
         self.close_mailer( mailer )
         log.debug( 'email_dct, ```%s```' % pprint.pformat(email_dct)[0:100] )
         return email_dct
@@ -130,7 +137,7 @@ class EmailChecker( object ):
             log.error( 'exception, ```%s```' % e )
             raise Exception( 'whoa: ```%s```' % e )
 
-    def search_email( self, mailer, since_date ):
+    def search_email( self, mailer, last_transfer_date ):
         """ Searches email account on proper subject.
             Called by check_email()
             Note: B.B. says the `Subject` cannot be customized, but has added identifying text to the beginning of the body_message.
@@ -139,7 +146,7 @@ class EmailChecker( object ):
         try:
             ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"Mail from the Library"' )  # response, eg, ```('OK', [b'2 3'])```
             log.debug( 'id_list, ```%s```' % id_list )
-            email_dct = self.process_recent_email( mailer, since_date, id_list )
+            email_dct = self.process_recent_email( mailer, last_transfer_date, id_list )
             return email_dct
         except Exception as e:
             log.error( 'exception, ```%s```' % e )
@@ -147,13 +154,13 @@ class EmailChecker( object ):
                 self.close_mailer( mailer )
             raise Exception( 'whoa: ```%s```' % e )
 
-    def process_recent_email( self, mailer, since_date, id_list ):
+    def process_recent_email( self, mailer, last_transfer_date, id_list ):
         """ Checks last email date and if necessary, grabs body.
             Called by search_email() """
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
         email_date = self.parse_email_date( email_obj )  # datetime-obj
-        if since_date is not None and since_date > email_date:
+        if last_transfer_date is not None and last_transfer_date >= email_date:
             log.debug( 'no new email' )
             return email_dct
         body_message = self.parse_body_message( email_obj )
