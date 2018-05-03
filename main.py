@@ -159,15 +159,29 @@ class EmailChecker( object ):
             Called by search_email() """
         email_dct = { 'email_date': None, 'email_body': None }
         email_obj = self.objectify_email_message( mailer, id_list )
-        email_date = self.parse_email_date( email_obj )  # datetime-obj
-        if last_transfer_date is not None and last_transfer_date >= email_date:
+        email_dct['email_date'] = self.parse_email_date( email_obj )  # datetime-obj
+        if last_transfer_date is not None and last_transfer_date >= email_dct['email_date']:
             log.debug( 'no new email' )
             return email_dct
         body_message = self.parse_body_message( email_obj )
-        email_dct['email_date'] = email_date
         email_dct['email_body'] = body_message
         log.debug( 'email_dct, ```%s```' % pprint.pformat(email_dct)[0:100] )
         return email_dct
+
+    # def process_recent_email( self, mailer, last_transfer_date, id_list ):
+    #     """ Checks last email date and if necessary, grabs body.
+    #         Called by search_email() """
+    #     email_dct = { 'email_date': None, 'email_body': None }
+    #     email_obj = self.objectify_email_message( mailer, id_list )
+    #     email_date = self.parse_email_date( email_obj )  # datetime-obj
+    #     if last_transfer_date is not None and last_transfer_date >= email_date:
+    #         log.debug( 'no new email' )
+    #         return email_dct
+    #     body_message = self.parse_body_message( email_obj )
+    #     email_dct['email_date'] = email_date
+    #     email_dct['email_body'] = body_message
+    #     log.debug( 'email_dct, ```%s```' % pprint.pformat(email_dct)[0:100] )
+    #     return email_dct
 
     def objectify_email_message( self, mailer, id_list ):
         """ Returns recent email from id_list.
