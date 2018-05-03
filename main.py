@@ -20,6 +20,7 @@ class Controller(object):
         self.RECENTS_URL = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_URL']
         self.RECENTS_PATH = os.environ['ANNX_PGSLP__RECENT_TRANSFERS_PATH']
         self.DESTINATION_FILEPATH = os.environ['ANNX_PGSLP__DESTINATION_FILEPATH']
+        self.recents_dct = None  # populated by get_since_date()
 
     def transfer_requests( self ):
         """ Calls steps.
@@ -37,17 +38,23 @@ class Controller(object):
             Called by transfer_requests() """
         since_date = None
         r = requests.get( self.RECENTS_URL )
-        log.debug( 'r.status_code, `%s`; type, `%s`' % (r.status_code, type(r.status_code))  )
-        if r.status_code == 404:
-            self.handle_date_json_not_found()
+        self.recents_dct = self.get_recents( r )
+        if self.recents_dct['recent_transfers']:
+            since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f%z' )
         else:
-            recents = r.json()['recent_transfers']
-            if recents:
-                since_date = recents[-1].strptime( '%Y-%m-%dT%H:%M:%S.%f%z' )
+            since_date = None
         log.debug( 'since_date, `%s`' % since_date )
         return since_date
 
-    def handle_date_json_not_found( self ):
+    def get_recents( self, resp ):
+        if resp.status_code == 404:
+            recents_dct = self.create_recents_json()
+        else:
+            recents_dct = resp.json()
+        log.debug( 'recents_dct, ```%s```' % pprint.pformat(recents_dct) )
+        return recents_dct
+
+    def create_recents_json( self ):
         """ Creates recent_transfers.json.
             Called by get_since_date() """
         eastern = pytz.timezone( 'US/Eastern' )
@@ -57,7 +64,7 @@ class Controller(object):
             'recent_transfers': [] }
         with open( self.RECENTS_PATH, 'w+' ) as f:
             f.write( json.dumps(recents_dct, sort_keys=True, indent=2) )
-        return
+        return recents_dct
 
     def check_email( self, since_date ):
         """ Checks for recent annex-requests.
