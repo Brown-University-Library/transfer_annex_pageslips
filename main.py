@@ -146,7 +146,7 @@ class EmailChecker( object ):
                   Perhaps in the future the email should be checked for this identifying text. """
         email_dct = { 'email_date': None, 'email_body': None }
         try:
-            ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"%s"' % self.SUBJECT )  # response, eg, ```('OK', [b'2 3'])```
+            ( ok_response, id_list ) = mailer.search( 'utf-8', b'(FROM "%s" SUBJECT "%s")' % (self.FROM_SEGMENT, self.SUBJECT) )  # response, eg, ```('OK', [b'2 3'])```
             log.debug( 'id_list, ```%s```' % id_list )
             email_dct = self.process_recent_email( mailer, last_transfer_date, id_list )
             return email_dct
