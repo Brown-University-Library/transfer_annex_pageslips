@@ -114,6 +114,8 @@ class EmailChecker( object ):
         self.MAIL_DOMAIN = os.environ['ANNX_PGSLP__MAIL_DOMAIN']
         self.EMAIL = os.environ['ANNX_PGSLP__EMAIL']
         self.PASSWORD = os.environ['ANNX_PGSLP__PASSWORD']
+        self.SUBJECT = os.environ['ANNX_PGSLP__SUBJECT'].encode( 'utf-8' )
+        self.FROM_SEGMENT = os.environ['ANNX_PGSLP__FROM_SEGMENT'].encode( 'utf-8' )
 
     def check_email( self, last_transfer_date ):
         """ Manager for email check.
@@ -144,7 +146,7 @@ class EmailChecker( object ):
                   Perhaps in the future the email should be checked for this identifying text. """
         email_dct = { 'email_date': None, 'email_body': None }
         try:
-            ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"Mail from the Library"' )  # response, eg, ```('OK', [b'2 3'])```
+            ( ok_response, id_list ) = mailer.search( 'utf-8', b'Subject', b'"%s"' % self.SUBJECT )  # response, eg, ```('OK', [b'2 3'])```
             log.debug( 'id_list, ```%s```' % id_list )
             email_dct = self.process_recent_email( mailer, last_transfer_date, id_list )
             return email_dct
