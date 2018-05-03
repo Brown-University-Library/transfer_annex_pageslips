@@ -10,7 +10,7 @@ logging.basicConfig(
     datefmt='%d/%b/%Y %H:%M:%S',
     )
 log = logging.getLogger(__name__)
-log.debug( 'starting log' )
+log.debug( '\n\nstarting log\n============' )
 
 
 class Controller(object):
