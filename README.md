@@ -1,3 +1,6 @@
+[![best-practices-image](https://library.brown.edu/good_code/project_image/annex-transfer-pageslips/)](https://library.brown.edu/good_code/project_info/annex-transfer-pageslips/)
+
+
 transfer annex page-slips
 =========================
 
@@ -17,9 +20,7 @@ The folk that are most experienced with Sierra determined our best approach woul
 This code, triggered by [cron](https://en.wikipedia.org/wiki/Cron), checks for new pageslip emails, parses out the pageslip data, and deposits it in a location where [other code](https://github.com/birkin/annex_process_pageslips) then massages that pageslip data and feeds it to the Annex's inventory-control software.
 
 
-#### more info...
-
-- Sierra ILS info, <bonnie_buzzell@brown.edu>
+#### contact...
 
 - code info, <birkin_diana@brown.edu>
 
